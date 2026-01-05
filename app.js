@@ -6,7 +6,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'http://10.29.114.83:8082'],
   credentials: true,
 }));
 app.use(morgan('dev'));

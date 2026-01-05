@@ -74,15 +74,3 @@ export const changePasswordSchema = z.object({
     .max(100, 'New password must not exceed 100 characters'),
 });
 
-// Admin login validation schema (same as regular login)
-export const adminLoginSchema = z.object({
-  email: z
-    .string()
-    .email('Please provide a valid email address')
-    .toLowerCase()
-    .trim(),
-  password: z
-    .string()
-    .min(1, 'Password is required'),
-});
-

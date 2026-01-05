@@ -69,12 +69,39 @@ export const authenticate = async (req, res, next) => {
 };
 
 /**
+ * Middleware to verify admin role
+ * Must be used after authenticate middleware
+ * Requires user to have admin role
+ * Usage: router.get('/route', authenticate, requireAdmin, handler)
+ */
+export const requireAdmin = (req, res, next) => {
+  // User should already be attached by authenticate middleware
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      error: 'Authentication required. Please login first.',
+    });
+  }
+
+  // Check if user is admin
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Access denied. Admin privileges required.',
+    });
+  }
+
+  next();
+};
+
+/**
  * Middleware to authenticate and verify admin role
- * Requires user to be authenticated AND have admin role
+ * Combines authenticate + requireAdmin for convenience
+ * Can be used as: router.get('/route', authenticateAdmin, handler)
  */
 export const authenticateAdmin = async (req, res, next) => {
   try {
-    // First, authenticate the user
+    // First authenticate the user
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -115,19 +142,19 @@ export const authenticateAdmin = async (req, res, next) => {
       });
     }
 
-    // Check if user is admin
-    if (user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied. Admin privileges required.',
-      });
-    }
-
     // Check if email is verified
     if (!user.isEmailVerified) {
       return res.status(403).json({
         success: false,
         error: 'Please verify your email address before accessing this resource.',
+      });
+    }
+
+    // Check if user is admin
+    if (user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. Admin privileges required.',
       });
     }
 
