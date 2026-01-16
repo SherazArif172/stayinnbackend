@@ -1,5 +1,5 @@
 import express from 'express';
-import { createRoom, getAllRooms, getRoomById, getRoomBySlug } from '../controllers/roomController.js';
+import { createRoom, getAllRooms, getRoomById, updateRoom, deleteRoom, getRoomBySlug } from '../controllers/roomController.js';
 
 const router = express.Router();
 
@@ -9,7 +9,13 @@ router.post('/', createRoom);
 // GET /api/rooms - Get all rooms
 router.get('/', getAllRooms);
 
-// GET /api/rooms/id/:id - Get room by ID (must be before :slug route)
+// PUT /api/rooms/:id - Update a room by ID
+router.put('/:id', updateRoom);
+
+// DELETE /api/rooms/:id - Delete a room by ID
+router.delete('/:id', deleteRoom);
+
+// GET /api/rooms/:id - Get room by ID (must be before :slug route)
 router.get('/:id', getRoomById);
 
 // GET /api/rooms/:slug - Get room by slug

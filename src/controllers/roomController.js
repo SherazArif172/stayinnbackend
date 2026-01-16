@@ -63,7 +63,7 @@ const createRoom = async (req, res) => {
 const getAllRooms = async (req, res) => {
   try {
     // Optional query parameters for filtering
-    const { roomType, status, isActive, floor } = req.query;
+    const { roomType, status, isActive, floor, page, limit, search } = req.query;
     
     // Build filter object
     const filter = {};
@@ -84,12 +84,40 @@ const getAllRooms = async (req, res) => {
       filter.floor = parseInt(floor);
     }
     
-    // Fetch rooms from database
-    const rooms = await Room.find(filter).sort({ createdAt: -1 });
+    // Search functionality - search across roomNumber, title, and description
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i'); // Case-insensitive search
+      filter.$or = [
+        { roomNumber: searchRegex },
+        { title: searchRegex },
+        { description: searchRegex }
+      ];
+    }
+    
+    // Pagination parameters
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 10;
+    const skip = (pageNumber - 1) * pageSize;
+    
+    // Get total count for pagination
+    const totalCount = await Room.countDocuments(filter);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(totalCount / pageSize);
+    
+    // Fetch rooms from database with pagination
+    const rooms = await Room.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize);
     
     res.json({
       success: true,
       count: rooms.length,
+      total: totalCount,
+      page: pageNumber,
+      pages: totalPages,
+      limit: pageSize,
       rooms
     });
   } catch (error) {
@@ -129,6 +157,128 @@ const getRoomById = async (req, res) => {
     console.error('Error fetching room:', error);
     res.status(500).json({
       error: 'Failed to fetch room',
+      message: error.message
+    });
+  }
+};
+
+// Update a room by ID
+const updateRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        error: 'Invalid room ID format'
+      });
+    }
+
+    // Validate request body using Zod
+    const validationResult = createRoomSchema.safeParse(req.body);
+
+    if (!validationResult.success) {
+      return res.status(400).json({
+        error: 'Validation error',
+        details: validationResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
+      });
+    }
+
+    const validatedData = validationResult.data;
+
+    // Check if room exists
+    const existingRoom = await Room.findById(id);
+    
+    if (!existingRoom) {
+      return res.status(404).json({
+        error: 'Room not found'
+      });
+    }
+
+    // Check if room number is being changed and if it conflicts with another room
+    if (validatedData.roomNumber && validatedData.roomNumber !== existingRoom.roomNumber) {
+      const roomWithSameNumber = await Room.findOne({ 
+        roomNumber: validatedData.roomNumber,
+        _id: { $ne: id } // Exclude current room
+      });
+      
+      if (roomWithSameNumber) {
+        return res.status(409).json({
+          error: 'Room number already exists'
+        });
+      }
+    }
+
+    // Update room
+    const updatedRoom = await Room.findByIdAndUpdate(
+      id,
+      { $set: validatedData },
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Room updated successfully',
+      room: updatedRoom
+    });
+  } catch (error) {
+    console.error('Error updating room:', error);
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: 'Validation error',
+        details: Object.values(error.errors).map(err => err.message)
+      });
+    }
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        error: 'Room number already exists'
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to update room',
+      message: error.message
+    });
+  }
+};
+
+// Delete a room by ID
+const deleteRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        error: 'Invalid room ID format'
+      });
+    }
+
+    // Check if room exists
+    const room = await Room.findById(id);
+    
+    if (!room) {
+      return res.status(404).json({
+        error: 'Room not found'
+      });
+    }
+
+    // Delete room
+    await Room.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: 'Room deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting room:', error);
+    res.status(500).json({
+      error: 'Failed to delete room',
       message: error.message
     });
   }
@@ -190,6 +340,8 @@ export {
   createRoom,
   getAllRooms,
   getRoomById,
+  updateRoom,
+  deleteRoom,
   getRoomBySlug,
 };
 
