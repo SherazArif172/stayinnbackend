@@ -7,7 +7,12 @@ const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const FROM_EMAIL = process.env.FROM_EMAIL || SMTP_USER;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+// Use production frontend for email links when deployed; override with FRONTEND_URL in env
+const FRONTEND_URL =
+  process.env.FRONTEND_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://stayinn-hostels-launch.vercel.app'
+    : 'http://localhost:3000');
 
 let transporter = null;
 

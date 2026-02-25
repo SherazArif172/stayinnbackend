@@ -11,6 +11,8 @@ const allowedOrigins = [
   'http://localhost:8080',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:8080',
+  'https://stayinn-hostels-launch.vercel.app',
+  'https://stayinn-dashboard-hub.vercel.app',
 ];
 // In development, allow any origin matching *:8080 or common LAN IPs (optional)
 const corsOptions = {
