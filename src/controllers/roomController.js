@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
 import Room from '../models/Room.js';
+import Booking from '../models/Booking.js';
 import { createRoomSchema } from '../validations/roomValidation.js';
+
+const BOOKING_STATUSES_BLOCKING_AVAILABILITY = ['pending', 'approved', 'checked_in'];
 
 // Create a new room
 const createRoom = async (req, res) => {
@@ -59,11 +62,11 @@ const createRoom = async (req, res) => {
   }
 };
 
-// Get all rooms
+// Get all rooms (optional: filter by availability for checkIn/checkOut)
 const getAllRooms = async (req, res) => {
   try {
     // Optional query parameters for filtering
-    const { roomType, status, isActive, floor, page, limit, search } = req.query;
+    const { roomType, status, isActive, floor, page, limit, search, checkIn, checkOut } = req.query;
     
     // Build filter object
     const filter = {};
@@ -92,6 +95,20 @@ const getAllRooms = async (req, res) => {
         { title: searchRegex },
         { description: searchRegex }
       ];
+    }
+    
+    // If checkIn and checkOut provided, exclude rooms that have overlapping bookings (pending, approved, checked_in)
+    const checkInDate = checkIn ? new Date(checkIn) : null;
+    const checkOutDate = checkOut ? new Date(checkOut) : null;
+    if (checkInDate && checkOutDate && !isNaN(checkInDate.getTime()) && !isNaN(checkOutDate.getTime()) && checkOutDate > checkInDate) {
+      const bookedRoomIds = await Booking.distinct('room', {
+        status: { $in: BOOKING_STATUSES_BLOCKING_AVAILABILITY },
+        checkInDate: { $lt: checkOutDate },
+        checkOutDate: { $gt: checkInDate },
+      });
+      if (bookedRoomIds.length > 0) {
+        filter._id = { $nin: bookedRoomIds };
+      }
     }
     
     // Pagination parameters

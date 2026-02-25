@@ -1,18 +1,38 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-// Resend configuration from environment variables
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+// Nodemailer (SMTP) configuration from environment variables
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
+const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const FROM_EMAIL = process.env.FROM_EMAIL || SMTP_USER;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-// Initialize Resend client
-let resend = null;
+let transporter = null;
 
-if (RESEND_API_KEY) {
-  resend = new Resend(RESEND_API_KEY);
+if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+  transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  });
 } else {
-  console.warn('⚠️  RESEND_API_KEY not configured. Email functionality will be disabled.');
+  console.warn('⚠️  SMTP not configured (SMTP_HOST, SMTP_USER, SMTP_PASS required). Email functionality will be disabled.');
 }
+
+const defaultStyles = `
+  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+  .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+  .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+  .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+  .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+  .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+`;
 
 /**
  * Send email verification email
@@ -23,29 +43,22 @@ if (RESEND_API_KEY) {
 export const sendVerificationEmail = async (email, token, fullName) => {
   const verificationUrl = `${FRONTEND_URL}/verify-email?token=${token}`;
 
-  if (!resend) {
-    console.warn(`⚠️  Resend not configured. Verification email would be sent to ${email}`);
+  if (!transporter) {
+    console.warn(`⚠️  SMTP not configured. Verification email would be sent to ${email}`);
     console.warn(`   Verification URL: ${verificationUrl}`);
-    return; // Don't throw error, just log warning
+    return;
   }
 
   try {
-    const { data, error } = await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
-      to: [email],
+      to: email,
       subject: 'Verify Your Email - StayInn Hostels',
       html: `
         <!DOCTYPE html>
         <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-              .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-            </style>
+            <style>${defaultStyles}</style>
           </head>
           <body>
             <div class="container">
@@ -71,12 +84,6 @@ export const sendVerificationEmail = async (email, token, fullName) => {
         </html>
       `,
     });
-
-    if (error) {
-      console.error('❌ Error sending verification email:', error);
-      throw new Error('Failed to send verification email');
-    }
-
     console.log(`✅ Verification email sent to ${email}`);
   } catch (error) {
     console.error('❌ Error sending verification email:', error);
@@ -93,30 +100,24 @@ export const sendVerificationEmail = async (email, token, fullName) => {
 export const sendPasswordResetEmail = async (email, token, fullName) => {
   const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
 
-  if (!resend) {
-    console.warn(`⚠️  Resend not configured. Password reset email would be sent to ${email}`);
+  if (!transporter) {
+    console.warn(`⚠️  SMTP not configured. Password reset email would be sent to ${email}`);
     console.warn(`   Reset URL: ${resetUrl}`);
-    return; // Don't throw error, just log warning
+    return;
   }
 
+  const warningStyles = '.warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 20px 0; }';
+
   try {
-    const { data, error } = await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
-      to: [email],
+      to: email,
       subject: 'Reset Your Password - StayInn Hostels',
       html: `
         <!DOCTYPE html>
         <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-              .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-              .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 20px 0; }
-            </style>
+            <style>${defaultStyles}${warningStyles}</style>
           </head>
           <body>
             <div class="container">
@@ -144,12 +145,6 @@ export const sendPasswordResetEmail = async (email, token, fullName) => {
         </html>
       `,
     });
-
-    if (error) {
-      console.error('❌ Error sending password reset email:', error);
-      throw new Error('Failed to send password reset email');
-    }
-
     console.log(`✅ Password reset email sent to ${email}`);
   } catch (error) {
     console.error('❌ Error sending password reset email:', error);

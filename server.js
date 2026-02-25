@@ -1,9 +1,9 @@
-import dotenv from 'dotenv';
-import connectDB from './src/config/db.js';
-import app from './app.js';
+// Must run first so SMTP etc. are in process.env when email.js and other modules load
+import './src/loadEnv.js';
 
-// Load environment variables first
-dotenv.config();
+import connectDB from './src/config/db.js';
+import { seedFacilitiesIfEmpty } from './src/scripts/seedFacilitiesIfEmpty.js';
+import app from './app.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -14,6 +14,8 @@ const startServer = async () => {
     
     // Connect to database
     await connectDB();
+    // Seed facilities if collection is empty (same list as frontend, fixed reference data)
+    await seedFacilitiesIfEmpty();
     
     // Start server
     app.listen(PORT, () => {
