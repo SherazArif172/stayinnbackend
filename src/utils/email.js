@@ -17,14 +17,24 @@ const FRONTEND_URL =
 let transporter = null;
 
 if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+  // Gmail on cloud hosts (Render, Heroku, etc.) often needs port 465 + secure; 587 can timeout
+  const isGmail = SMTP_HOST.includes('gmail');
+  const port = SMTP_PORT;
+  const secure = SMTP_SECURE;
+  const useSecurePort = isGmail && port === 587 && process.env.NODE_ENV === 'production';
+
   transporter = nodemailer.createTransport({
     host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_SECURE,
+    port: useSecurePort ? 465 : port,
+    secure: useSecurePort || secure,
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS,
     },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
+    tls: { rejectUnauthorized: true },
   });
 } else {
   console.warn('⚠️  SMTP not configured (SMTP_HOST, SMTP_USER, SMTP_PASS required). Email functionality will be disabled.');
