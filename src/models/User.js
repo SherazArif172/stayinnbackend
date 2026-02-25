@@ -23,11 +23,11 @@ const userSchema = new mongoose.Schema(
     },
     cnicFront: {
       type: String,
-      required: [true, 'CNIC front image is required'],
+      required: false,
     },
     cnicBack: {
       type: String,
-      required: [true, 'CNIC back image is required'],
+      required: false,
     },
     isEmailVerified: {
       type: Boolean,

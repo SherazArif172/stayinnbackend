@@ -52,16 +52,18 @@ export const register = async (req, res) => {
     const emailVerifyTokenExpiry = new Date();
     emailVerifyTokenExpiry.setHours(emailVerifyTokenExpiry.getHours() + 24); // 24 hours expiry
 
-    // Create user
-    const user = await User.create({
+    const userPayload = {
       fullName,
       email,
       password: hashedPassword,
-      cnicFront,
-      cnicBack,
       emailVerifyToken,
       emailVerifyTokenExpiry,
-    });
+    };
+    if (cnicFront) userPayload.cnicFront = cnicFront;
+    if (cnicBack) userPayload.cnicBack = cnicBack;
+
+    // Create user
+    const user = await User.create(userPayload);
 
     // Send verification email in background so registration responds immediately
     sendVerificationEmail(user.email, emailVerifyToken, user.fullName).catch((emailError) => {

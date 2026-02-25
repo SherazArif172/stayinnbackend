@@ -16,12 +16,8 @@ export const registerSchema = z.object({
     .string()
     .min(6, 'Password must be at least 6 characters')
     .max(100, 'Password must not exceed 100 characters'),
-  cnicFront: z
-    .string()
-    .min(1, 'CNIC front image is required'),
-  cnicBack: z
-    .string()
-    .min(1, 'CNIC back image is required'),
+  cnicFront: z.string().optional(),
+  cnicBack: z.string().optional(),
 });
 
 // Verify email validation schema
