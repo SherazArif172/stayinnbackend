@@ -17,16 +17,16 @@ const FRONTEND_URL =
 let transporter = null;
 
 if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-  // Gmail on cloud hosts (Render, Heroku, etc.) often needs port 465 + secure; 587 can timeout
+  // Gmail on cloud hosts (Render, Heroku): use 465 + secure; 587 often blocked or IPv6-only and fails (ENETUNREACH)
   const isGmail = SMTP_HOST.includes('gmail');
-  const port = SMTP_PORT;
-  const secure = SMTP_SECURE;
-  const useSecurePort = isGmail && port === 587 && process.env.NODE_ENV === 'production';
+  const inProduction = process.env.NODE_ENV === 'production';
+  const port = inProduction && isGmail ? 465 : SMTP_PORT;
+  const secure = inProduction && isGmail ? true : SMTP_SECURE;
 
   transporter = nodemailer.createTransport({
     host: SMTP_HOST,
-    port: useSecurePort ? 465 : port,
-    secure: useSecurePort || secure,
+    port,
+    secure,
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS,
